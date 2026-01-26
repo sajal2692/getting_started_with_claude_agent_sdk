@@ -1,0 +1,12 @@
+[project]
+name = "claude-agent-sdk-course-code"
+version = "0.1.0"
+description = "Hands-on exercises for the Claude Agent SDK live course for O'Reilly"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "claude-agent-sdk>=0.1.0",
+    "jupyter>=1.1.1",
+    "nest-asyncio>=1.6.0",
+    "python-dotenv>=1.1.1",
+]

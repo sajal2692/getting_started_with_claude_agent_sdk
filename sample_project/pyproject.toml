@@ -1,0 +1,14 @@
+[project]
+name = "taskflow"
+version = "0.1.0"
+description = "A simple CLI task manager - sample project for Claude Agent SDK course"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+taskflow = "task_manager:main"
