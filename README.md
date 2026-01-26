@@ -1,5 +1,8 @@
 # Claude Agent SDK Course
 
+> **WARNING: WORK IN PROGRESS**
+> This repository is currently under active development. Content, structure, and code examples are subject to change. Some modules and exercises may be incomplete or updated without notice.
+
 Hands-on exercises for the Claude Agent SDK live course for O'Reilly.
 
 ## Prerequisites
