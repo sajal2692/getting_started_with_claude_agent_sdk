@@ -5,6 +5,7 @@ description = "Hands-on exercises for the Claude Agent SDK live course for O'Rei
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "aiohttp>=3.9.0",
     "claude-agent-sdk>=0.1.0",
     "jupyter>=1.1.1",
     "nest-asyncio>=1.6.0",
