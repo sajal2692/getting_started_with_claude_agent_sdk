@@ -9,5 +9,7 @@ dependencies = [
     "claude-agent-sdk>=0.1.0",
     "jupyter>=1.1.1",
     "nest-asyncio>=1.6.0",
+    "pandas>=2.3.3",
     "python-dotenv>=1.1.1",
+    "yfinance>=1.1.0",
 ]

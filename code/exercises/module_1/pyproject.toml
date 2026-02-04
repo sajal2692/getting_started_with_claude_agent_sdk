@@ -1,0 +1,15 @@
+[project]
+name = "module-1-exercises"
+version = "0.1.0"
+description = "Module 1 exercises for Claude Agent SDK course"
+requires-python = ">=3.10"
+dependencies = [
+    "claude-agent-sdk>=0.1.19",
+    "yfinance>=0.2.32",
+    "pandas>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "nest-asyncio>=1.5.8",
+    "ipython>=8.12.0",
+    "jupyter>=1.0.0",
+    "matplotlib>=3.7.0",
+]

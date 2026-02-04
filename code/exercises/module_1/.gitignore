@@ -1,0 +1,13 @@
+# uv environment
+.venv/
+uv.lock
+
+# Temporary files created by exercises
+tmp/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Python cache
+__pycache__/
+*.pyc
