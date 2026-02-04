@@ -1,0 +1,17 @@
+[project]
+name = "stock-analyzer-with-skills"
+version = "1.0.0"
+description = "Module 2: Stock analyzer using Claude Agent SDK with custom skills"
+requires-python = ">=3.10"
+dependencies = [
+    "claude-agent-sdk>=0.1.19",
+    "yfinance>=0.2.32",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "python-dotenv>=1.0.0",
+    "anyio>=4.0.0",
+]
+
+[project.scripts]
+stock-analyzer = "stock_analyzer:main"

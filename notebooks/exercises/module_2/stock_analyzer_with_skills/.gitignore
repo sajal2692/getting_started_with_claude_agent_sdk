@@ -1,0 +1,26 @@
+# uv environment
+.venv/
+uv.lock
+
+# Environment variables
+.env
+
+# Generated files
+tmp/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
