@@ -1,0 +1,42 @@
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Output files
+output/*.html
+tmp/*
+!tmp/.gitkeep
+!output/.gitkeep
+
+# Session outputs and logs
+outputs/
+logs/
+
+# Keep directory structure
+!logs/.gitkeep
+!outputs/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# uv
+uv.lock

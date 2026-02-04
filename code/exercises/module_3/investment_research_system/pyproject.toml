@@ -1,0 +1,12 @@
+[project]
+name = "investment-research-system"
+version = "1.0.0"
+description = "Multi-agent investment research system using Claude Agent SDK"
+requires-python = ">=3.10"
+dependencies = [
+    "claude-agent-sdk>=0.1.19",
+    "yfinance>=0.2.40",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "python-dotenv>=1.0.0",
+]
