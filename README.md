@@ -1,10 +1,10 @@
 # Claude Agent SDK Course
 
-⚠️ **WARNING: WORK IN PROGRESS** ⚠️
+Hands-on code examples and exercises for the Claude Agent SDK live course for O'Reilly.
 
-This repository is currently under active development. Content, structure, and code examples are subject to change. Some modules and exercises may be incomplete or updated without notice.
-
-Hands-on exercises for the Claude Agent SDK live course for O'Reilly.
+This repository contains:
+- **Examples**: Step-by-step Jupyter notebooks demonstrating SDK concepts
+- **Exercises**: Complete projects that build progressively more complex agent systems
 
 ## Prerequisites
 
@@ -55,56 +55,81 @@ Edit the `.env` file and add your Anthropic API key:
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
-### 4. Run Jupyter Notebooks
-
-```bash
-# Start Jupyter
-uv run jupyter notebook
-```
-
-Navigate to the `notebooks/` directory and open the exercise notebooks.
-
-## Project Structure
+## Repository Structure
 
 ```
 claude_agent_sdk_course_code/
-├── notebooks/                         # Jupyter exercise notebooks
-│   ├── 01_module1_handson.ipynb      # Module 1: Getting Started
-│   ├── 02_module2_handson.ipynb      # Module 2: Deep Dive (coming)
-│   └── 03_module3_handson.ipynb      # Module 3: Multi-Agent (coming)
-├── .env.example                       # Environment variables template
-├── .gitignore                         # Git ignore file
-├── .python-version                    # Python version specification
-├── pyproject.toml                     # Project configuration
-├── README.md                          # This file
-└── uv.lock                            # Dependency lock file
+├── code/
+│   ├── examples/                      # Demonstration notebooks
+│   │   ├── module_1/
+│   │   │   └── 01_getting_started.ipynb
+│   │   ├── module_2/
+│   │   │   ├── 01_session_management.ipynb
+│   │   │   ├── 02_hooks.ipynb
+│   │   │   └── 03_skills.ipynb
+│   │   └── module_3/
+│   │       ├── 01_custom_tools.ipynb
+│   │       └── 02_multi_agent_systems.ipynb
+│   └── exercises/                     # Hands-on projects
+│       ├── module_1/
+│       │   └── stock_analyzer/        # Notebook-based stock analysis
+│       ├── module_2/
+│       │   └── stock_analyzer_with_skills/  # CLI with agent skills
+│       └── module_3/
+│           └── investment_research_system/  # Multi-agent system
+├── .env.example
+├── pyproject.toml
+└── README.md
 ```
+
+## How to Use This Repository
+
+### Running Examples
+
+Examples are Jupyter notebooks that demonstrate specific SDK concepts:
+
+```bash
+# Start Jupyter from the root directory
+uv run jupyter notebook
+
+# Navigate to code/examples/module_X/ and open the notebooks
+```
+
+**Examples cover:**
+- Module 1: Getting started with the SDK
+- Module 2: Session management, hooks, and skills
+- Module 3: Custom tools and multi-agent systems
+
+### Running Exercises
+
+Exercises are complete, standalone projects. Each exercise has its own README with setup and running instructions:
+
+1. Navigate to the exercise directory:
+```bash
+cd code/exercises/module_1/stock_analyzer
+# or
+cd code/exercises/module_2/stock_analyzer_with_skills
+# or
+cd code/exercises/module_3/investment_research_system
+```
+
+2. Follow the README in each exercise directory for:
+   - Specific setup instructions
+   - How to run the exercise
+   - Expected outputs
+
+**Exercises include:**
+- **Module 1**: Stock analyzer using Jupyter notebooks (agents write Python code)
+- **Module 2**: Stock analyzer CLI with reusable agent skills
+- **Module 3**: Multi-agent investment research system with HTML dashboards
 
 ## Course Modules
 
-| Module | Duration | Topics |
-|--------|----------|--------|
-| **Module 1** | 75 min | Introduction to Claude Agent SDK, core concepts, response modes |
-| **Module 2** | 90 min | Agent loop, debugging, context management, built-in tools, skills |
-| **Module 3** | 75 min | Custom tools, MCP integration, multi-agent systems, production deployment |
-
-## Notebooks Overview
-
-### Module 1: Getting Started
-- Create a simple agent with minimal configuration
-- Single query vs streaming modes
-- Basic tool configuration
-
-### Module 2: Deep Dive (Coming Soon)
-- Complete agent loop demonstration
-- Context compaction observation
-- Built-in tools for practical tasks
-- Create your own custom skill
-
-### Module 3: Multi-Agent Systems (Coming Soon)
-- Build and integrate custom tools
-- MCP server integration
-- Multi-agent system with specialized subagents
+| Module | Duration | Topics | Examples | Exercises |
+|--------|----------|--------|----------|-----------|
+| **Module 1** | 75 min | Introduction to Claude Agent SDK, core concepts, response modes | Getting started | Stock analyzer (notebook) |
+| **Module 2** | 90 min | Agent loop, debugging, context management, built-in tools, skills | Session management, hooks, skills | Stock analyzer with skills (CLI) |
+| **Module 3** | 75 min | Custom tools, MCP integration, multi-agent systems | Custom tools, multi-agent systems | Investment research system |
 
 ## Troubleshooting
 
