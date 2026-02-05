@@ -9,6 +9,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any, Dict
 import threading
+from claude_agent_sdk import AssistantMessage, TextBlock
+from claude_agent_sdk.types import StreamEvent
 
 
 class AgentLogger:
@@ -148,12 +150,16 @@ class AgentLogger:
             if isinstance(usage, dict):
                 data["usage"] = usage
             else:
+                input_tokens = getattr(usage, 'input_tokens', 0)
+                output_tokens = getattr(usage, 'output_tokens', 0)
+                cache_write = getattr(usage, 'cache_creation_input_tokens', 0)
+                cache_read = getattr(usage, 'cache_read_input_tokens', 0)
+
                 data["usage"] = {
-                    "input_tokens": getattr(usage, 'input_tokens', 0),
-                    "output_tokens": getattr(usage, 'output_tokens', 0),
-                    "cache_write": getattr(usage, 'cache_creation_input_tokens', 0),
-                    "cache_read": getattr(usage, 'cache_read_input_tokens', 0),
-                    "total_cost_usd": getattr(usage, 'total_cost_usd', 0)
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "cache_write": cache_write,
+                    "cache_read": cache_read
                 }
 
         self.log_event("final_result", data, subagent)
@@ -214,6 +220,243 @@ class AgentLogger:
                     continue
 
         return text_blocks
+
+    def show_progress_indicators(self, message, progress_state: dict):
+        """Show progress indicators in console (regardless of debug mode).
+
+        Args:
+            message: Message to check for progress indicators
+            progress_state: Mutable dict with keys: subagents_spawned, synthesis_started, dashboard_started
+        """
+        if not isinstance(message, AssistantMessage):
+            return
+
+        # Detect Task tool calls (subagent spawning)
+        for block in message.content:
+            if hasattr(block, 'name') and block.name == "Task":
+                if hasattr(block, 'input') and isinstance(block.input, dict):
+                    subagent_type = block.input.get('subagent_type', 'unknown')
+
+                    # Only show each subagent spawn once
+                    if subagent_type not in progress_state["subagents_spawned"]:
+                        progress_state["subagents_spawned"].add(subagent_type)
+
+                        # Friendly names for subagents
+                        friendly_names = {
+                            "news-sentiment": "News & Sentiment Analyst",
+                            "fundamental-analysis": "Fundamental Analyst",
+                            "competitive-analysis": "Competitive Analyst",
+                            "dashboard-builder": "Dashboard Builder"
+                        }
+
+                        name = friendly_names.get(subagent_type, subagent_type)
+                        print(f"\n>> Spawning: {name}")
+
+        # Detect completion and synthesis in text blocks
+        for block in message.content:
+            if isinstance(block, TextBlock):
+                text = block.text.lower()
+
+                # Detect when research is complete and synthesis starts
+                if ("all three research" in text or
+                    "research teams have completed" in text or
+                    "all three analyst" in text or
+                    "research subagents completed" in text or
+                    "analysis teams have completed" in text):
+
+                    if not progress_state["synthesis_started"]:
+                        progress_state["synthesis_started"] = True
+                        print(f"\n>> All research subagents completed")
+                        print(f">> Coordinator synthesizing findings...")
+
+                # Detect when dashboard building starts
+                if ("dashboard" in text and "builder" in text and
+                    not progress_state["dashboard_started"] and
+                    progress_state["synthesis_started"]):
+
+                    progress_state["dashboard_started"] = True
+                    print(f"\n>> Starting dashboard visualization...")
+
+    def log_stream_event(self, stream_event: StreamEvent, progress_state: dict):
+        """Log streaming events from subagents - accumulate and log complete text blocks.
+
+        Args:
+            stream_event: StreamEvent containing event and parent_tool_use_id
+            progress_state: Mutable dict with keys: active_tasks, text_accumulator
+        """
+        parent_tool_id = stream_event.parent_tool_use_id
+        event = stream_event.event
+        event_type = event.get("type", "unknown")
+
+        # Determine which subagent this belongs to
+        subagent_name = "coordinator"
+        if parent_tool_id and parent_tool_id in progress_state["active_tasks"]:
+            subagent_name = progress_state["active_tasks"][parent_tool_id]
+
+        # Log different event types
+        if event_type == "content_block_start":
+            block = event.get("content_block", {})
+            block_type = block.get("type", "unknown")
+            block_index = event.get("index", -1)
+
+            if block_type == "tool_use":
+                # Subagent is calling a tool
+                tool_name = block.get("name", "unknown")
+                tool_id = block.get("id", "unknown")
+
+                self.log_event(
+                    "subagent_tool_call",
+                    {
+                        "tool_name": tool_name,
+                        "tool_id": tool_id,
+                        "from_subagent": parent_tool_id is not None,
+                        "parent_tool_id": parent_tool_id
+                    },
+                    subagent=subagent_name
+                )
+            elif block_type == "text":
+                # Initialize text accumulator for this block
+                block_key = (parent_tool_id, block_index)
+                progress_state["text_accumulator"][block_key] = ""
+
+        elif event_type == "content_block_delta":
+            # Accumulate text deltas into the text block
+            delta = event.get("delta", {})
+            delta_type = delta.get("type", "unknown")
+            block_index = event.get("index", -1)
+
+            if delta_type == "text_delta":
+                text = delta.get("text", "")
+                block_key = (parent_tool_id, block_index)
+
+                # Accumulate text for this block
+                if block_key in progress_state["text_accumulator"]:
+                    progress_state["text_accumulator"][block_key] += text
+                else:
+                    # Initialize if not already started
+                    progress_state["text_accumulator"][block_key] = text
+
+        elif event_type == "content_block_stop":
+            # Log the complete text block now that it's finished
+            block_index = event.get("index", -1)
+            block_key = (parent_tool_id, block_index)
+
+            if block_key in progress_state["text_accumulator"]:
+                complete_text = progress_state["text_accumulator"][block_key]
+
+                # Log the complete text block
+                self.log_event(
+                    "subagent_text_complete",
+                    {
+                        "text": complete_text,
+                        "text_length": len(complete_text),
+                        "block_index": block_index,
+                        "from_subagent": parent_tool_id is not None,
+                        "parent_tool_id": parent_tool_id
+                    },
+                    subagent=subagent_name
+                )
+
+                # Clean up accumulator
+                del progress_state["text_accumulator"][block_key]
+
+        elif event_type == "message_start":
+            # Log when a message starts (from subagent or coordinator)
+            message = event.get("message", {})
+            self.log_event(
+                "message_start",
+                {
+                    "role": message.get("role", "unknown"),
+                    "from_subagent": parent_tool_id is not None,
+                    "parent_tool_id": parent_tool_id
+                },
+                subagent=subagent_name
+            )
+
+    def identify_and_log_subagents(self, message, progress_state: dict):
+        """Identify subagent activity and log appropriately.
+
+        Args:
+            message: Message to analyze for subagent activity
+            progress_state: Mutable dict with key: active_tasks
+        """
+        # Determine which subagent this message belongs to
+        subagent_name = "coordinator"
+
+        # Check if message has parent_tool_use_id (from subagent execution)
+        if hasattr(message, 'parent_tool_use_id') and message.parent_tool_use_id:
+            parent_tool_id = message.parent_tool_use_id
+            if parent_tool_id in progress_state["active_tasks"]:
+                subagent_name = progress_state["active_tasks"][parent_tool_id]
+
+        # Handle AssistantMessage - contains tool use requests
+        if isinstance(message, AssistantMessage):
+            task_calls = {}  # Map tool_id to subagent_type
+
+            for block in message.content:
+                # Track Task tool calls (subagent spawning)
+                if hasattr(block, 'name') and block.name == "Task":
+                    if hasattr(block, 'input') and isinstance(block.input, dict):
+                        subagent_type = block.input.get('subagent_type')
+                        tool_id = getattr(block, 'id', None)
+                        prompt = block.input.get('prompt', '')[:200]
+
+                        if subagent_type and tool_id:
+                            task_calls[tool_id] = subagent_type
+                            progress_state["active_tasks"][tool_id] = subagent_type
+
+                            # Log spawn with task details
+                            self.log_event(
+                                "subagent_spawn",
+                                {
+                                    "subagent_type": subagent_type,
+                                    "tool_id": tool_id,
+                                    "prompt_preview": prompt
+                                },
+                                subagent="coordinator"
+                            )
+
+            # Log the full assistant message with correct subagent attribution
+            self.log_message(message, subagent=subagent_name)
+
+        # Handle other message types - check for tool results
+        else:
+            # Determine subagent from parent_tool_use_id
+            subagent_name = "coordinator"
+            if hasattr(message, 'parent_tool_use_id') and message.parent_tool_use_id:
+                parent_tool_id = message.parent_tool_use_id
+                if parent_tool_id in progress_state["active_tasks"]:
+                    subagent_name = progress_state["active_tasks"][parent_tool_id]
+
+            # Check if this message contains tool results
+            if hasattr(message, 'content'):
+                for block in message.content:
+                    # Look for ToolResultBlock from Task tool
+                    if hasattr(block, 'tool_use_id') and hasattr(block, 'content'):
+                        tool_use_id = block.tool_use_id
+
+                        # Check if this is a result from a subagent Task
+                        if tool_use_id in progress_state["active_tasks"]:
+                            subagent_type = progress_state["active_tasks"][tool_use_id]
+                            result_content = str(block.content)
+
+                            # Log as subagent result
+                            self.log_event(
+                                "subagent_result",
+                                {
+                                    "subagent_type": subagent_type,
+                                    "tool_use_id": tool_use_id,
+                                    "result": result_content[:1000],
+                                    "result_length": len(result_content)
+                                },
+                                subagent=subagent_type
+                            )
+
+                            # Clean up completed task
+                            del progress_state["active_tasks"][tool_use_id]
+
+            # Log the full message with correct subagent attribution
+            self.log_message(message, subagent=subagent_name)
 
     def get_summary(self) -> str:
         """Generate a human-readable summary of the session."""
@@ -372,18 +615,6 @@ class AgentLogger:
             for tool, count in sorted(tools_used.items()):
                 lines.append(f"  {tool}: {count}")
 
-        # Cost summary
-        results = [e for e in events if e.get("event_type") == "final_result"]
-        if results:
-            last_result = results[-1]
-            usage = last_result.get("data", {}).get("usage", {})
-            if usage:
-                lines.append("\nCost Summary:")
-                lines.append(f"  Input tokens: {usage.get('input_tokens', 0):,}")
-                lines.append(f"  Output tokens: {usage.get('output_tokens', 0):,}")
-                lines.append(f"  Cache write: {usage.get('cache_write', 0):,}")
-                lines.append(f"  Cache read: {usage.get('cache_read', 0):,}")
-                lines.append(f"  Total cost: ${usage.get('total_cost_usd', 0):.4f}")
 
         lines.append("\n" + "=" * 80)
         lines.append(f"Full logs: {self.session_file}")
