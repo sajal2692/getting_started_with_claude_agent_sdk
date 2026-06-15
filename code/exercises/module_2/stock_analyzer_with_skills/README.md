@@ -36,7 +36,7 @@ uv sync
 
 # Option B: Create local .env
 cp .env.example .env
-# Edit .env and add: CLAUDE_API_KEY=your_key_here
+# Edit .env and add: ANTHROPIC_API_KEY=your_key_here
 ```
 
 ## Running the Application

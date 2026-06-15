@@ -279,10 +279,12 @@ Return a focused summary covering:
 Keep analysis concise and actionable.""",
             tools=[
                 "Read", "Write", "Bash",
-                "Skill",  # Can use Module 2 skills if available
                 "mcp__financial-tools__financial_metrics_calculator",
                 "mcp__financial-tools__valuation_assessor"
-            ]
+            ],
+            # Scope this subagent to the specific Module 2 skills it needs.
+            # Replaces the deprecated practice of listing "Skill" in `tools`.
+            skills=["stock-lookup", "risk-analysis"]
         ),
 
         "competitive-analysis": AgentDefinition(
@@ -317,10 +319,10 @@ Return a summary covering:
 Focus on strategic insights, not just data.""",
             tools=[
                 "Read", "Write", "Bash",
-                "Skill",  # Can use Module 2 comparative-analysis
                 "mcp__competitive-tools__sector_benchmark",
                 "mcp__competitive-tools__market_position_analyzer"
-            ]
+            ],
+            skills=["comparative-analysis"]
         ),
 
         "dashboard-builder": AgentDefinition(
@@ -365,10 +367,10 @@ Follow dashboard-design skill guidelines for:
 Make it visually appealing and easy to understand.""",
             tools=[
                 "Read", "Write",
-                "Skill",  # Can use dashboard-design skill
                 "mcp__viz-tools__create_chart",
                 "mcp__viz-tools__build_dashboard"
-            ]
+            ],
+            skills=["dashboard-design"]
         ),
     }
 

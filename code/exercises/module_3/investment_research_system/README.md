@@ -56,7 +56,7 @@ uv sync
 # Option B: Create local .env
 cp .env.example .env
 # Edit .env and add:
-#   CLAUDE_API_KEY=your_key_here
+#   ANTHROPIC_API_KEY=your_key_here
 #   TAVILY_API_KEY=your_key_here (optional, for real news search)
 ```
 
