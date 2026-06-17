@@ -7,7 +7,7 @@ A Jupyter notebook-based introduction to the Claude Agent SDK. Agents write and 
 ```
 stock_analyzer/
 ├── pyproject.toml              # Dependencies
-├── .env.example                # API key template
+├── .env.example                # Optional API-key template
 ├── tmp/                        # Generated files (scripts, data, results)
 ├── 01_stock_analyzer.ipynb     # Main exercise notebook
 └── README.md
@@ -25,14 +25,16 @@ cd code/exercises/module_1/stock_analyzer
 uv sync
 ```
 
-3. Configure API key (choose one):
+3. Authenticate:
 ```bash
-# Option A: Use parent project's .env (recommended)
-# The notebook will automatically use ../../../../.env if present
-
-# Option B: Create local .env
-cp .env.example .env
-# Edit .env and add: ANTHROPIC_API_KEY=your_key_here
+# Default: use your Claude subscription -- no API key needed.
+# Install the Claude Code CLI and log in once:
+#   curl -fsSL https://claude.ai/install.sh | bash   # then: claude
+#
+# Optional (API-key billing instead): create a local .env and add your key
+#   cp .env.example .env
+#   # then uncomment ANTHROPIC_API_KEY in .env and paste your key
+# (If ANTHROPIC_API_KEY is set, it overrides your subscription.)
 ```
 
 4. Launch Jupyter:

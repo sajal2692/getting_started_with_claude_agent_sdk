@@ -32,7 +32,10 @@ from claude_agent_sdk import (
 )
 
 
-# Load environment variables
+# Load optional environment variables from .env (if present).
+# This course uses your Claude subscription, so no ANTHROPIC_API_KEY is required --
+# the Claude Code CLI (run `claude` to log in) handles auth. load_dotenv() is here
+# only for optional keys, or an API key if you opt into per-token billing instead.
 load_dotenv()
 
 

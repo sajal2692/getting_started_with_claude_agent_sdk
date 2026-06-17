@@ -231,9 +231,9 @@ class AgentLogger:
         if not isinstance(message, AssistantMessage):
             return
 
-        # Detect Task tool calls (subagent spawning)
+        # Detect Agent tool calls (subagent spawning)
         for block in message.content:
-            if hasattr(block, 'name') and block.name == "Task":
+            if hasattr(block, 'name') and block.name == "Agent":
                 if hasattr(block, 'input') and isinstance(block.input, dict):
                     subagent_type = block.input.get('subagent_type', 'unknown')
 
@@ -394,8 +394,8 @@ class AgentLogger:
             task_calls = {}  # Map tool_id to subagent_type
 
             for block in message.content:
-                # Track Task tool calls (subagent spawning)
-                if hasattr(block, 'name') and block.name == "Task":
+                # Track Agent tool calls (subagent spawning)
+                if hasattr(block, 'name') and block.name == "Agent":
                     if hasattr(block, 'input') and isinstance(block.input, dict):
                         subagent_type = block.input.get('subagent_type')
                         tool_id = getattr(block, 'id', None)
@@ -431,11 +431,11 @@ class AgentLogger:
             # Check if this message contains tool results
             if hasattr(message, 'content'):
                 for block in message.content:
-                    # Look for ToolResultBlock from Task tool
+                    # Look for ToolResultBlock from Agent tool
                     if hasattr(block, 'tool_use_id') and hasattr(block, 'content'):
                         tool_use_id = block.tool_use_id
 
-                        # Check if this is a result from a subagent Task
+                        # Check if this is a result from a spawned subagent
                         if tool_use_id in progress_state["active_tasks"]:
                             subagent_type = progress_state["active_tasks"][tool_use_id]
                             result_content = str(block.content)
@@ -515,7 +515,7 @@ class AgentLogger:
                 lines.append(f"\n  {i}. {subagent_type}")
                 lines.append(f"     Tool ID: {tool_id}")
                 if prompt_preview:
-                    lines.append(f"     Task: {prompt_preview}...")
+                    lines.append(f"     Prompt: {prompt_preview}...")
 
         # Show internal tool calls made by subagents
         if subagent_tool_calls:
