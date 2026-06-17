@@ -48,19 +48,19 @@ cd code/exercises/module_3/investment_research_system
 uv sync
 ```
 
-3. Configure API keys (choose one):
+3. Authenticate:
 ```bash
-# Option A: Use parent project's .env (recommended)
-# The script will look for ../../../../.env
-
-# Option B: Create local .env
-cp .env.example .env
-# Edit .env and add:
-#   CLAUDE_API_KEY=your_key_here
-#   TAVILY_API_KEY=your_key_here (optional, for real news search)
+# Default: use your Claude subscription -- no API key needed.
+# Install the Claude Code CLI and log in once:
+#   curl -fsSL https://claude.ai/install.sh | bash   # then: claude
+#
+# Optional (API-key billing instead): create a local .env and add your key
+#   cp .env.example .env
+#   # then uncomment ANTHROPIC_API_KEY in .env and paste your key
+# (If ANTHROPIC_API_KEY is set, it overrides your subscription.)
 ```
 
-Note: Tavily API is optional (free tier: 1000 searches/month at https://tavily.com/). Without it, the news subagent uses only sentiment analysis tools.
+Note: Tavily API is optional (free tier: 1000 searches/month at https://tavily.com/). To enable real-time news search, uncomment `TAVILY_API_KEY` in `.env` and add your key. Without it, the news subagent uses only sentiment analysis tools.
 
 ## Running the Application
 

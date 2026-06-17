@@ -57,28 +57,26 @@ _progress_state = {
     "text_accumulator": {}  # Accumulate text blocks: {(parent_tool_id, block_index): text}
 }
 
-# Find API keys
-def find_api_key():
-    """Find Anthropic API key from .env files"""
-    import os
+# Load environment variables (.env is optional)
+def load_env_files():
+    """Load optional .env files from this directory and the parent project.
+
+    This course uses your Claude subscription by default, so no API key is
+    required -- the Claude Code CLI (run `claude` to log in) handles auth.
+    .env is only needed for optional keys such as TAVILY_API_KEY, or an
+    ANTHROPIC_API_KEY if you opt into per-token API billing instead.
+    """
     from dotenv import load_dotenv
 
-    # Try current directory
+    # Current directory
     if Path(".env").exists():
         load_dotenv()
-        if os.getenv("ANTHROPIC_API_KEY"):
-            return os.getenv("ANTHROPIC_API_KEY")
 
-    # Try parent project directory (go up to claude_agent_sdk_course_code)
-    # Current: .../code/exercises/module_3/investment_research_system
-    # Target:  .../claude_agent_sdk_course_code/.env
+    # Parent project directory (claude_agent_sdk_course_code/.env)
     project_root = Path(__file__).parent.parent.parent.parent.parent
     env_path = project_root / ".env"
     if env_path.exists():
         load_dotenv(env_path)
-        return os.getenv("ANTHROPIC_API_KEY")
-
-    return None
 
 
 def get_tavily_api_key():
@@ -279,10 +277,12 @@ Return a focused summary covering:
 Keep analysis concise and actionable.""",
             tools=[
                 "Read", "Write", "Bash",
-                "Skill",  # Can use Module 2 skills if available
                 "mcp__financial-tools__financial_metrics_calculator",
                 "mcp__financial-tools__valuation_assessor"
-            ]
+            ],
+            # Scope this subagent to the specific Module 2 skills it needs.
+            # Replaces the deprecated practice of listing "Skill" in `tools`.
+            skills=["stock-lookup", "risk-analysis"]
         ),
 
         "competitive-analysis": AgentDefinition(
@@ -317,10 +317,10 @@ Return a summary covering:
 Focus on strategic insights, not just data.""",
             tools=[
                 "Read", "Write", "Bash",
-                "Skill",  # Can use Module 2 comparative-analysis
                 "mcp__competitive-tools__sector_benchmark",
                 "mcp__competitive-tools__market_position_analyzer"
-            ]
+            ],
+            skills=["comparative-analysis"]
         ),
 
         "dashboard-builder": AgentDefinition(
@@ -365,10 +365,10 @@ Follow dashboard-design skill guidelines for:
 Make it visually appealing and easy to understand.""",
             tools=[
                 "Read", "Write",
-                "Skill",  # Can use dashboard-design skill
                 "mcp__viz-tools__create_chart",
                 "mcp__viz-tools__build_dashboard"
-            ]
+            ],
+            skills=["dashboard-design"]
         ),
     }
 
@@ -419,8 +419,8 @@ Key principles:
 - Keep your synthesis concise but insightful
 - Focus on actionable investment insights""",
 
-        # Include Task tool for spawning subagents
-        allowed_tools=["Read", "Write", "Bash", "Task"],
+        # Include Agent tool for spawning subagents
+        allowed_tools=["Read", "Write", "Bash", "Agent"],
 
         # Register all MCP servers (subagents will access specific ones)
         mcp_servers=all_mcp_servers,
@@ -679,15 +679,14 @@ Examples:
 
     args = parser.parse_args()
 
-    # Check API key
-    api_key = find_api_key()
-    if not api_key:
-        print("Error: ANTHROPIC_API_KEY not found.")
-        print("\nPlease set your API key:")
-        print("  1. Create a .env file in this directory")
-        print("  2. Add: ANTHROPIC_API_KEY=your_key_here")
-        print("  Or use the parent project's .env file")
-        sys.exit(1)
+    # Load optional .env files. No API key is required -- this course uses your
+    # Claude subscription via the Claude Code CLI (run `claude` to log in).
+    import os
+    load_env_files()
+    if os.getenv("ANTHROPIC_API_KEY"):
+        print("Auth: using ANTHROPIC_API_KEY (per-token API billing).")
+    else:
+        print("Auth: using your Claude subscription (no ANTHROPIC_API_KEY set).")
 
     # Show mode
     if not args.mode:

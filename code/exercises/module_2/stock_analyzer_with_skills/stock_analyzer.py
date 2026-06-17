@@ -32,7 +32,10 @@ from claude_agent_sdk import (
 )
 
 
-# Load environment variables
+# Load optional environment variables from .env (if present).
+# This course uses your Claude subscription, so no ANTHROPIC_API_KEY is required --
+# the Claude Code CLI (run `claude` to log in) handles auth. load_dotenv() is here
+# only for optional keys, or an API key if you opt into per-token billing instead.
 load_dotenv()
 
 
@@ -56,8 +59,13 @@ def create_agent_options() -> ClaudeAgentOptions:
         # Enable project skills from .claude/skills/
         setting_sources=["project"],
 
-        # Include Skill tool + analysis tools
-        allowed_tools=["Skill", "Read", "Write", "Bash"],
+        # Enable all discovered project skills. This is the modern replacement
+        # for putting "Skill" in allowed_tools (now deprecated); the SDK wires
+        # up the Skill tool automatically.
+        skills="all",
+
+        # Analysis tools the agent may use
+        allowed_tools=["Read", "Write", "Bash"],
 
         # Set working directory to project root
         cwd=paths["project_root"],
@@ -65,8 +73,8 @@ def create_agent_options() -> ClaudeAgentOptions:
         # Auto-approve tool usage for smooth experience
         permission_mode="bypassPermissions",
 
-        # Use Sonnet for cost-effectiveness
-        model="claude-sonnet-4-5",
+        # Use Sonnet for cost-effectiveness ("sonnet" alias tracks the latest Sonnet)
+        model="sonnet",
 
         # Reasonable turn limit
         max_turns=20,
@@ -225,7 +233,8 @@ def print_message(message, debug=False):
 
             # Calculate cost manually if not provided
             if total_cost == 0 and (input_tokens > 0 or output_tokens > 0):
-                # Claude Sonnet 4.5 pricing (as of 2026)
+                # Claude Sonnet pricing (approximate fallback; the SDK normally
+                # populates ResultMessage.total_cost_usd directly)
                 # Input: $3 per million tokens
                 # Output: $15 per million tokens
                 # Cache write: $3.75 per million tokens

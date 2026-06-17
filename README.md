@@ -9,7 +9,8 @@ This repository contains:
 ## Prerequisites
 
 - Python 3.10+
-- Anthropic API key
+- [Claude Code CLI](https://code.claude.com/docs/en/quickstart) installed and logged in (the Python SDK calls it under the hood)
+- A Claude Pro/Max subscription (this course's default) — or an Anthropic API key if you prefer per-token billing
 - Git
 
 ## Setup Instructions
@@ -42,17 +43,29 @@ cd claude_agent_sdk_course_code
 
 # Install dependencies
 uv sync
-
-# Create environment file
-cp .env.example .env
 ```
 
-### 3. Configure Environment Variables
+### 3. Authenticate
 
-Edit the `.env` file and add your Anthropic API key:
+This course uses your **Claude Pro/Max subscription** — no API key required. Install the [Claude Code CLI](https://code.claude.com/docs/en/quickstart) and log in once:
 
-```env
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+```bash
+# macOS / Linux native installer (or: npm install -g @anthropic-ai/claude-code)
+curl -fsSL https://claude.ai/install.sh | bash
+
+# Log in with your Claude account (opens a browser)
+claude
+```
+
+Run `/status` inside `claude` to confirm you're authenticated via your subscription.
+
+> **Precedence note:** if `ANTHROPIC_API_KEY` is set in your environment, the SDK uses it (per-token API billing) and ignores your subscription. Keep it unset for subscription use.
+
+**Optional — use an API key instead:** copy the env template and add a key from the [Console](https://console.anthropic.com/settings/keys):
+
+```bash
+cp .env.example .env
+# then uncomment ANTHROPIC_API_KEY in .env and paste your key
 ```
 
 ## Repository Structure
@@ -140,9 +153,9 @@ cd code/exercises/module_3/investment_research_system
    - On Windows, try using PowerShell instead of Command Prompt
    - Or use `python -m uv` instead of `uv`
 
-2. **Anthropic API errors**
-   - Verify your API key is correct in `.env`
-   - Check you have sufficient API credits
+2. **Authentication errors**
+   - Subscription (default): run `claude` and confirm you're logged in (`/status`); make sure `ANTHROPIC_API_KEY` is *not* set unless you intend to use API billing
+   - API key (optional path): verify the key in `.env` is correct and your account has credits
 
 3. **Import errors**
    - Run `uv sync` to ensure all dependencies are installed
