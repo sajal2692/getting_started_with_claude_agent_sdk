@@ -1,40 +1,44 @@
 # Module 3: Multi-Agent Investment Research System
 
-A multi-agent CLI application that uses subagents for parallel research and generates interactive HTML dashboards. Demonstrates custom MCP tools, agent coordination, and visualization.
+A multi-agent CLI application that uses subagents for parallel research and generates interactive HTML dashboards. Demonstrates Agent Skills with helper scripts, a pre-built MCP server (Tavily), agent coordination, and context isolation.
 
 ## Architecture
 
-The coordinator agent spawns specialized subagents:
+The coordinator agent spawns specialized subagents, each scoped to only the skills it needs:
 
 **Parallel Research Phase:**
-- News & Sentiment Subagent (custom sentiment tools + Tavily Search MCP)
-- Fundamental Analysis Subagent (stock-lookup, risk-analysis, financial tools)
-- Competitive Analysis Subagent (comparative-analysis, sector tools)
+- News & Sentiment Subagent (`news-sentiment` skill + Tavily Search MCP)
+- Fundamental Analysis Subagent (`stock-lookup`, `risk-analysis`, `financial-analysis` skills)
+- Competitive Analysis Subagent (`comparative-analysis`, `competitive-positioning` skills)
 
 **Sequential Building Phase:**
-- Dashboard Builder Subagent (creates interactive HTML with Chart.js)
+- Dashboard Builder Subagent (`dashboard-design` + `report-builder` skills; interactive Chart.js HTML)
+
+All domain logic lives in Agent Skills with helper scripts. The only MCP server is the external, pre-built Tavily Search (a connectivity example); there are no in-process custom tools.
 
 ## Project Structure
 
 ```
 investment_research_system/
-├── custom_tools/                # Custom MCP tools
-│   ├── sentiment_tools.py       # News sentiment analysis
-│   ├── financial_tools.py       # Financial metrics & valuation
-│   ├── competitive_tools.py     # Sector benchmarking
-│   └── visualization_tools.py   # Chart creation & dashboard
-├── .claude/skills/              # Reused from Module 2
-│   ├── stock-lookup/
-│   ├── risk-analysis/
-│   ├── comparative-analysis/
-│   └── dashboard-design/        # New: visualization guidelines
-├── output/                      # Generated HTML dashboards
-├── tmp/                         # Temporary data files
-├── investment_research.py       # Main application
+├── .claude/skills/                  # All domain logic lives in skills
+│   ├── stock-lookup/                # Fetch price history (helper script)
+│   ├── risk-analysis/               # Volatility, beta, VaR (helper script)
+│   ├── comparative-analysis/        # Compare tickers (helper script)
+│   ├── news-sentiment/              # Sentiment + theme aggregation (helper script)
+│   ├── financial-analysis/          # Metrics + valuation (helper script)
+│   ├── competitive-positioning/     # Sector benchmark + position (helper script)
+│   ├── dashboard-design/            # Dashboard design guidelines
+│   └── report-builder/              # Assemble HTML dashboard (helper script)
+├── outputs/                         # Generated dashboards + temp files (per session)
+├── tmp/                             # Temporary data files
+├── investment_research.py           # Main application
+├── logger.py                        # Debug/observability logging
 ├── pyproject.toml
 ├── .env.example
 └── README.md
 ```
+
+The first three skills are carried forward from Module 2; the other four replace what used to be in-process custom tools.
 
 ## Setup
 
@@ -60,7 +64,9 @@ uv sync
 # (If ANTHROPIC_API_KEY is set, it overrides your subscription.)
 ```
 
-Note: Tavily API is optional (free tier: 1000 searches/month at https://tavily.com/). To enable real-time news search, uncomment `TAVILY_API_KEY` in `.env` and add your key. Without it, the news subagent uses only sentiment analysis tools.
+Note: Tavily API is optional (free tier: 1000 searches/month at https://tavily.com/). To enable real-time news search, uncomment `TAVILY_API_KEY` in `.env` and add your key. Without it, the news subagent relies on the `news-sentiment` skill only.
+
+Note: Output token limit (optional). Only relevant with per-token API billing (`ANTHROPIC_API_KEY`). If a large dashboard comes out truncated, raise the agent's output cap by setting `CLAUDE_CODE_MAX_OUTPUT_TOKENS` (e.g. `64000`) in `.env`. The default is fine for the subscription path and most reports; the `report-builder` skill also keeps the HTML out of the model's output, so this is rarely needed.
 
 ## Running the Application
 
@@ -85,7 +91,7 @@ The system generates:
    - Fundamental financial metrics
    - Competitive positioning
 
-2. **Interactive HTML dashboard** in `output/investment_report_{ticker}_{date}.html`:
+2. **Interactive HTML dashboard** in `outputs/session_<ts>/final/investment_report_{ticker}_{date}.html`:
    - Executive summary cards
    - Chart.js visualizations
    - News sentiment section
@@ -100,14 +106,14 @@ Example workflow:
 You: Analyze Tesla stock
 
 System spawns 3 subagents in parallel:
-├─ News & Sentiment (Tavily search + sentiment tools)
-├─ Fundamental Analysis (stock-lookup, risk-analysis, financial tools)
-└─ Competitive Analysis (comparative-analysis, sector tools)
+├─ News & Sentiment (Tavily search + news-sentiment skill)
+├─ Fundamental Analysis (stock-lookup, risk-analysis, financial-analysis skills)
+└─ Competitive Analysis (comparative-analysis, competitive-positioning skills)
 
 Coordinator synthesizes findings
 
 Dashboard Builder creates HTML report
-→ output/investment_report_TSLA_2025-02-05.html
+→ outputs/session_<ts>/final/investment_report_TSLA_2025-02-05.html
 
 Open in browser to view interactive dashboard
 ```

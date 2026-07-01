@@ -3,13 +3,13 @@
 Investment Research System - Module 3 Exercise
 
 Multi-agent system for comprehensive stock analysis using:
-- Custom tools (in-process MCP servers)
+- Agent Skills + helper scripts (news-sentiment, financial-analysis,
+  competitive-positioning, report-builder, plus stock-lookup, risk-analysis,
+  comparative-analysis, dashboard-design)
 - Pre-built MCP (Tavily Search for news)
-- Module 2 Skills (stock-lookup, risk-analysis, comparative-analysis)
 - Parallel subagents for research
 - Sequential dashboard builder
-- Context isolation
-- Tool restriction per subagent
+- Context isolation via per-subagent skill/tool restriction
 
 Architecture:
     Investment Research Coordinator
@@ -31,18 +31,11 @@ from claude_agent_sdk import (
     ClaudeSDKClient,
     ClaudeAgentOptions,
     AgentDefinition,
-    create_sdk_mcp_server,
     AssistantMessage,
     TextBlock,
     ResultMessage,
 )
 from claude_agent_sdk.types import StreamEvent
-
-# Import custom tools
-from custom_tools.sentiment_tools import sentiment_analyzer, news_aggregator
-from custom_tools.financial_tools import financial_metrics_calculator, valuation_assessor
-from custom_tools.competitive_tools import sector_benchmark, market_position_analyzer
-from custom_tools.visualization_tools import create_chart, build_dashboard
 
 # Import logger
 from logger import AgentLogger
@@ -97,46 +90,6 @@ def get_tavily_api_key():
     return os.getenv("TAVILY_API_KEY")
 
 
-# Create MCP servers for custom tools
-def create_mcp_servers():
-    """Create in-process MCP servers for each subagent"""
-
-    # Sentiment tools for News & Sentiment subagent
-    sentiment_server = create_sdk_mcp_server(
-        name="sentiment-tools",
-        version="1.0.0",
-        tools=[sentiment_analyzer, news_aggregator]
-    )
-
-    # Financial tools for Fundamental Analysis subagent
-    financial_server = create_sdk_mcp_server(
-        name="financial-tools",
-        version="1.0.0",
-        tools=[financial_metrics_calculator, valuation_assessor]
-    )
-
-    # Competitive tools for Competitive Analysis subagent
-    competitive_server = create_sdk_mcp_server(
-        name="competitive-tools",
-        version="1.0.0",
-        tools=[sector_benchmark, market_position_analyzer]
-    )
-
-    # Visualization tools for Dashboard Builder subagent
-    viz_server = create_sdk_mcp_server(
-        name="viz-tools",
-        version="1.0.0",
-        tools=[create_chart, build_dashboard]
-    )
-
-    return {
-        "sentiment": sentiment_server,
-        "financial": financial_server,
-        "competitive": competitive_server,
-        "viz": viz_server
-    }
-
-
 def configure_external_mcp_servers():
     """
     Configure external MCP servers (like Tavily for web search).
@@ -159,14 +112,14 @@ def configure_external_mcp_servers():
         print("* Tavily Search MCP configured (tavily-mcp@0.1.3)")
     else:
         print("* Tavily Search not configured (TAVILY_API_KEY not found)")
-        print("  News subagent will use custom sentiment tools only")
+        print("  News subagent will rely on the news-sentiment skill only")
 
     return external_servers
 
 
 def create_options(debug: bool = False, use_module2_path: bool = False, output_session_dir: Path = None):
     """
-    Create ClaudeAgentOptions with subagents and custom tools.
+    Create ClaudeAgentOptions with subagents and skills (plus the optional external Tavily MCP).
 
     Args:
         debug: Enable debug mode
@@ -186,28 +139,19 @@ def create_options(debug: bool = False, use_module2_path: bool = False, output_s
         final_output_dir.mkdir(exist_ok=True)
         tmp_output_dir.mkdir(exist_ok=True)
 
-    # Get MCP servers (in-process SDK servers + external servers like Tavily)
-    sdk_mcp_servers = create_mcp_servers()
+    # External MCP servers (e.g. Tavily Search). No in-process custom-tool
+    # servers remain -- that functionality now lives in Agent Skills.
     external_mcp_servers = configure_external_mcp_servers()
+    all_mcp_servers = external_mcp_servers
 
-    # Combine all MCP servers
-    all_mcp_servers = {**sdk_mcp_servers, **external_mcp_servers}
-
-    # Determine which tools news subagent gets (depends on Tavily availability)
-    news_tools = ["Read", "Write"]
-
-    # Add Tavily MCP if available
+    # News subagent tools. Bash lets it run the news-sentiment skill's helper
+    # script; Tavily search tools are added only when the MCP is configured.
+    news_tools = ["Read", "Write", "Bash"]
     if "tavily" in external_mcp_servers:
         news_tools.extend([
             "mcp__tavily__tavily-search",
             "mcp__tavily__tavily-extract"
         ])
-
-    # Always add sentiment tools
-    news_tools.extend([
-        "mcp__sentiment-tools__sentiment_analyzer",
-        "mcp__sentiment-tools__news_aggregator"
-    ])
 
     # Define subagents with specific tools and MCP servers
     subagents = {
@@ -221,20 +165,20 @@ def create_options(debug: bool = False, use_module2_path: bool = False, output_s
 4. Assess market sentiment (bullish, bearish, neutral)
 5. Highlight important events (earnings, product launches, regulatory news)
 
-Tools available:
+Skills and tools available:
+- news-sentiment skill: Run its helper script to score sentiment and aggregate
+  themes from news text (see the skill for the exact command)
 - Tavily Search MCP (if configured): Search for recent financial news and articles
-- sentiment_analyzer: Analyze sentiment of news text
-- news_aggregator: Aggregate and categorize news items
-- Write: For saving intermediate data to {tmp_output_dir}/ if needed
+- Write/Bash: Save news to {tmp_output_dir}/ and run the skill's helper script
 
 The coordinator will provide you with the current date for temporal context.
 Use this information to focus on recent news (last 7-30 days).
 
 Process:
 1. If Tavily is available, search for recent news using the provided date context
-2. Analyze sentiment of findings
-3. Aggregate themes
-4. If you need to save intermediate data, write to {tmp_output_dir}/
+2. Save the headlines/snippets to {tmp_output_dir}/news.txt (one item per line)
+3. Use the news-sentiment skill to score sentiment and aggregate themes
+4. Interpret the results
 
 Return a concise summary (5-7 bullet points) covering:
 - Overall sentiment
@@ -243,7 +187,8 @@ Return a concise summary (5-7 bullet points) covering:
 - Market perception
 
 Keep your analysis focused and avoid overwhelming the main coordinator with raw search results.""",
-            tools=news_tools
+            tools=news_tools,
+            skills=["news-sentiment"]
         ),
 
         "fundamental-analysis": AgentDefinition(
@@ -256,17 +201,17 @@ Keep your analysis focused and avoid overwhelming the main coordinator with raw 
 4. Analyze financial health and profitability
 5. Compare against industry standards
 
-Tools available:
-- Module 2 Skills (if enabled): stock-lookup, risk-analysis
-- financial_metrics_calculator: Calculate financial ratios
-- valuation_assessor: Assess valuation
-- Write: For saving intermediate data to {tmp_output_dir}/ if needed
+Skills available:
+- stock-lookup: Fetch price history and basic statistics
+- risk-analysis: Assess volatility, beta, and downside risk
+- financial-analysis: Compute metrics (P/E, ROE, margins) and a valuation
+  verdict from supplied figures (run its helper script)
 
 Process:
-1. Use Module 2 skills to fetch stock data if available
-2. Calculate metrics using custom tools
-3. Provide valuation assessment
-4. If you need to save intermediate data, write to {tmp_output_dir}/
+1. Use stock-lookup to fetch recent price data
+2. Assemble the financial figures you have into a JSON file in {tmp_output_dir}/
+3. Use the financial-analysis skill to compute metrics and valuation
+4. Optionally use risk-analysis for the risk profile
 
 Return a focused summary covering:
 - Key financial metrics
@@ -275,14 +220,10 @@ Return a focused summary covering:
 - Investment quality rating
 
 Keep analysis concise and actionable.""",
-            tools=[
-                "Read", "Write", "Bash",
-                "mcp__financial-tools__financial_metrics_calculator",
-                "mcp__financial-tools__valuation_assessor"
-            ],
-            # Scope this subagent to the specific Module 2 skills it needs.
-            # Replaces the deprecated practice of listing "Skill" in `tools`.
-            skills=["stock-lookup", "risk-analysis"]
+            # Context isolation: grant only the skills this subagent needs.
+            # Bash lets it run each skill's helper script.
+            tools=["Read", "Write", "Bash"],
+            skills=["stock-lookup", "risk-analysis", "financial-analysis"]
         ),
 
         "competitive-analysis": AgentDefinition(
@@ -295,18 +236,16 @@ Keep analysis concise and actionable.""",
 4. Assess competitive advantages and weaknesses
 5. Compare performance metrics against peers
 
-Tools available:
-- Module 2 Skills (if enabled): comparative-analysis
-- sector_benchmark: Compare against sector averages
-- market_position_analyzer: Analyze market position
-- Write: For saving intermediate data to {tmp_output_dir}/ if needed
+Skills available:
+- comparative-analysis: Compare price performance across multiple tickers
+- competitive-positioning: Benchmark metrics vs sector averages and summarize
+  market position (run its helper script)
 
 Process:
 1. Identify main competitors
-2. Use Module 2 comparative-analysis skill if available
-3. Benchmark against sector using custom tools
-4. Assess competitive positioning
-5. If you need to save intermediate data, write to {tmp_output_dir}/
+2. Use comparative-analysis to compare performance across peers if helpful
+3. Assemble sector averages and position data into a JSON file in {tmp_output_dir}/
+4. Use the competitive-positioning skill to benchmark and assess position
 
 Return a summary covering:
 - Competitive positioning
@@ -315,12 +254,8 @@ Return a summary covering:
 - Threats from competitors
 
 Focus on strategic insights, not just data.""",
-            tools=[
-                "Read", "Write", "Bash",
-                "mcp__competitive-tools__sector_benchmark",
-                "mcp__competitive-tools__market_position_analyzer"
-            ],
-            skills=["comparative-analysis"]
+            tools=["Read", "Write", "Bash"],
+            skills=["comparative-analysis", "competitive-positioning"]
         ),
 
         "dashboard-builder": AgentDefinition(
@@ -332,11 +267,14 @@ Focus on strategic insights, not just data.""",
 3. Build a comprehensive HTML dashboard
 4. Organize information in a clear, visual format
 
-Tools and Skills available (EXCLUSIVE to you):
-- dashboard-design skill: Design guidelines for professional dashboards
-- create_chart: Generate interactive charts (bar, line, pie)
-- build_dashboard: Assemble complete HTML dashboard
-- Write: For saving intermediate data if needed
+Skills available (EXCLUSIVE to you):
+- dashboard-design: Design guidelines (colors, chart types, layout)
+- report-builder: Assemble the HTML dashboard from a JSON config via its helper
+  script (it renders the Chart.js charts for you)
+
+IMPORTANT: Do NOT write the dashboard HTML yourself. Always generate it by running
+the report-builder helper script on a JSON config. This keeps the large HTML out
+of your response and guarantees consistent styling.
 
 Output Locations:
 - Dashboard file: {final_output_dir}/investment_report_{{ticker}}_{{date}}.html
@@ -344,10 +282,12 @@ Output Locations:
 
 Process:
 1. Review all research findings from other subagents
-2. Consult dashboard-design skill for best practices
-3. Identify key metrics to visualize (returns, metrics, comparisons)
-4. Create appropriate charts following design guidelines
-5. Assemble everything into a polished HTML dashboard
+2. Consult the dashboard-design skill for the color scheme, chart types, and layout
+3. Build a dashboard config JSON in {tmp_output_dir}/ that captures everything to
+   show: summary cards (sentiment, valuation, recommendation) plus a section per
+   topic, putting each section's charts in its chart_spec (or chart_specs list)
+4. Run the report-builder helper script on that config to write the final HTML
+5. Report the output path -- do not paste the HTML into your response
 
 Dashboard should include:
 - Executive summary cards (sentiment, valuation, recommendation)
@@ -363,12 +303,8 @@ Follow dashboard-design skill guidelines for:
 - Professional styling
 
 Make it visually appealing and easy to understand.""",
-            tools=[
-                "Read", "Write",
-                "mcp__viz-tools__create_chart",
-                "mcp__viz-tools__build_dashboard"
-            ],
-            skills=["dashboard-design"]
+            tools=["Read", "Write", "Bash"],
+            skills=["dashboard-design", "report-builder"]
         ),
     }
 
