@@ -14,7 +14,7 @@ The coordinator agent spawns specialized subagents, each scoped to only the skil
 **Sequential Building Phase:**
 - Dashboard Builder Subagent (`dashboard-design` + `report-builder` skills; interactive Chart.js HTML)
 
-All domain logic lives in Agent Skills with helper scripts. The only MCP server is the external, pre-built Tavily Search (a connectivity example); there are no in-process custom tools.
+All domain logic lives in Agent Skills with helper scripts. The only MCP server is the external, pre-built Tavily Search, included here as a connectivity example.
 
 ## Project Structure
 
@@ -38,7 +38,7 @@ investment_research_system/
 └── README.md
 ```
 
-The first three skills are carried forward from Module 2; the other four replace what used to be in-process custom tools.
+The first three skills carry over from the Module 2 exercise; the rest are specific to this system.
 
 ## Setup
 

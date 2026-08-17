@@ -139,8 +139,8 @@ def create_options(debug: bool = False, use_module2_path: bool = False, output_s
         final_output_dir.mkdir(exist_ok=True)
         tmp_output_dir.mkdir(exist_ok=True)
 
-    # External MCP servers (e.g. Tavily Search). No in-process custom-tool
-    # servers remain -- that functionality now lives in Agent Skills.
+    # External MCP servers (e.g. Tavily Search). The domain logic lives in
+    # Agent Skills, which the subagents run through Bash.
     external_mcp_servers = configure_external_mcp_servers()
     all_mcp_servers = external_mcp_servers
 
