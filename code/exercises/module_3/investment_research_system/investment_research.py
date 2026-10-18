@@ -34,6 +34,7 @@ from claude_agent_sdk import (
     AssistantMessage,
     TextBlock,
     ResultMessage,
+    TaskStartedMessage,
 )
 from claude_agent_sdk.types import StreamEvent
 
@@ -47,6 +48,8 @@ _progress_state = {
     "synthesis_started": False,
     "dashboard_started": False,
     "active_tasks": {},  # Map tool_id to subagent_type
+    "agent_names": {},  # Map Agent tool_id to subagent_type, for progress lines
+    "background_tool_ids": set(),  # Agent tool calls that run in the background
     "text_accumulator": {}  # Accumulate text blocks: {(parent_tool_id, block_index): text}
 }
 
@@ -373,10 +376,6 @@ Key principles:
         # Permission mode - bypassPermissions allows subagents to use MCP tools without prompts
         permission_mode="bypassPermissions",
 
-        # Keep subagents in the foreground. Newer Claude Code versions run them
-        # in the background, which ends the coordinator's turn before research finishes
-        env={"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"},
-
         # Model
         model="sonnet",
     )
@@ -384,8 +383,9 @@ Key principles:
     return options
 
 
-def print_message(message, debug=False, logger=None):
-    """Print message based on type"""
+def print_message(message, debug=False, logger=None, final=True):
+    """Print message based on type. final=False marks a result that ends a
+    turn while background subagents are still working."""
 
     # Handle StreamEvent messages (subagent internal activity)
     if isinstance(message, StreamEvent):
@@ -438,7 +438,10 @@ def print_message(message, debug=False, logger=None):
             if isinstance(block, TextBlock):
                 print(block.text)
     elif isinstance(message, ResultMessage):
-        if message.result:
+        if not final:
+            # The coordinator's text was already printed above
+            print("\n>> Coordinator is waiting on background subagents")
+        elif message.result:
             print(f"\n{'='*60}")
             print("FINAL RESULT:")
             print(f"{'='*60}")
@@ -467,6 +470,38 @@ def print_message(message, debug=False, logger=None):
                 if total_cost:
                     print(f"Estimated cost: ${total_cost:.4f}")
                 print(f"{'─'*60}")
+
+
+async def receive_until_done(client, debug=False, logger=None):
+    """Print the messages for one request, including background subagent turns.
+
+    Claude Code can run a subagent in the background. The coordinator's turn
+    then ends while the subagent works, and when the subagent finishes, the
+    coordinator gets a follow-up turn whose ResultMessage has a
+    "task-notification" origin. receive_response() would stop at the first
+    ResultMessage, so read the stream until every background subagent has had
+    its follow-up turn. Foreground subagents finish inside the coordinator's
+    turn, so in that case this stops at the first ResultMessage.
+    """
+    waiting = set()  # run IDs of background subagents still owed a follow-up turn
+
+    async for message in client.receive_messages():
+        # A background subagent started. Its run ID comes back on the origin
+        # of the follow-up turn's ResultMessage.
+        if (isinstance(message, TaskStartedMessage)
+                and message.task_type == "local_agent"
+                and message.data.get("is_backgrounded")):
+            waiting.add(message.data.get("run_id"))
+
+        if isinstance(message, ResultMessage):
+            origin = message.origin or {}
+            if origin.get("kind") == "task-notification":
+                waiting.discard(origin.get("runId"))
+            print_message(message, debug=debug, logger=logger, final=not waiting)
+            if not waiting:
+                break
+        else:
+            print_message(message, debug=debug, logger=logger)
 
 
 async def query_mode(prompt: str, debug: bool = False):
@@ -505,9 +540,7 @@ async def query_mode(prompt: str, debug: bool = False):
             print()
 
         await client.query(prompt)
-
-        async for message in client.receive_response():
-            print_message(message, debug=debug, logger=logger)
+        await receive_until_done(client, debug=debug, logger=logger)
 
     # Show log summary if debug mode
     if debug and logger:
@@ -571,10 +604,9 @@ async def interactive_mode(debug: bool = False):
                 # Send query
                 await client.query(user_input)
 
-                # Receive response
+                # Receive response, including background subagent turns
                 print("\nAssistant:\n")
-                async for message in client.receive_response():
-                    print_message(message, debug=debug, logger=logger)
+                await receive_until_done(client, debug=debug, logger=logger)
 
             except KeyboardInterrupt:
                 print("\n\nInterrupted. Ending session.")

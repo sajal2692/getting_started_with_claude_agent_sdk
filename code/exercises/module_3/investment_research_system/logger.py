@@ -9,8 +9,16 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any, Dict
 import threading
-from claude_agent_sdk import AssistantMessage, TextBlock
+from claude_agent_sdk import AssistantMessage, TextBlock, TaskStartedMessage, TaskNotificationMessage
 from claude_agent_sdk.types import StreamEvent
+
+# Friendly names for subagents in progress lines
+FRIENDLY_NAMES = {
+    "news-sentiment": "News & Sentiment Analyst",
+    "fundamental-analysis": "Fundamental Analyst",
+    "competitive-analysis": "Competitive Analyst",
+    "dashboard-builder": "Dashboard Builder"
+}
 
 
 class AgentLogger:
@@ -228,6 +236,14 @@ class AgentLogger:
             message: Message to check for progress indicators
             progress_state: Mutable dict with keys: subagents_spawned, synthesis_started, dashboard_started
         """
+        # A subagent finished (sent for foreground and background subagents)
+        if isinstance(message, TaskNotificationMessage):
+            subagent_type = progress_state["agent_names"].get(message.tool_use_id)
+            if subagent_type:
+                name = FRIENDLY_NAMES.get(subagent_type, subagent_type)
+                print(f"\n>> Finished: {name} ({message.status})")
+            return
+
         if not isinstance(message, AssistantMessage):
             return
 
@@ -236,20 +252,12 @@ class AgentLogger:
             if hasattr(block, 'name') and block.name == "Agent":
                 if hasattr(block, 'input') and isinstance(block.input, dict):
                     subagent_type = block.input.get('subagent_type', 'unknown')
+                    progress_state["agent_names"][block.id] = subagent_type
 
                     # Only show each subagent spawn once
                     if subagent_type not in progress_state["subagents_spawned"]:
                         progress_state["subagents_spawned"].add(subagent_type)
-
-                        # Friendly names for subagents
-                        friendly_names = {
-                            "news-sentiment": "News & Sentiment Analyst",
-                            "fundamental-analysis": "Fundamental Analyst",
-                            "competitive-analysis": "Competitive Analyst",
-                            "dashboard-builder": "Dashboard Builder"
-                        }
-
-                        name = friendly_names.get(subagent_type, subagent_type)
+                        name = FRIENDLY_NAMES.get(subagent_type, subagent_type)
                         print(f"\n>> Spawning: {name}")
 
         # Detect completion and synthesis in text blocks
@@ -380,6 +388,39 @@ class AgentLogger:
             message: Message to analyze for subagent activity
             progress_state: Mutable dict with key: active_tasks
         """
+        # A subagent moved to the background. Its Agent tool result will only
+        # say it launched, so keep its tool ID mapped until it finishes.
+        if isinstance(message, TaskStartedMessage):
+            tool_id = message.tool_use_id
+            if message.data.get("is_backgrounded") and tool_id in progress_state["active_tasks"]:
+                progress_state["background_tool_ids"].add(tool_id)
+                self.log_event(
+                    "subagent_backgrounded",
+                    {"subagent_type": progress_state["active_tasks"][tool_id], "tool_id": tool_id},
+                    subagent="coordinator"
+                )
+            return
+
+        # A background subagent finished: its summary arrives here instead of
+        # in the Agent tool result
+        if isinstance(message, TaskNotificationMessage):
+            tool_id = message.tool_use_id
+            if tool_id in progress_state["background_tool_ids"] and tool_id in progress_state["active_tasks"]:
+                subagent_type = progress_state["active_tasks"].pop(tool_id)
+                progress_state["background_tool_ids"].discard(tool_id)
+                self.log_event(
+                    "subagent_result",
+                    {
+                        "subagent_type": subagent_type,
+                        "tool_use_id": tool_id,
+                        "status": message.status,
+                        "result": message.summary[:1000],
+                        "result_length": len(message.summary)
+                    },
+                    subagent=subagent_type
+                )
+            return
+
         # Determine which subagent this message belongs to
         subagent_name = "coordinator"
 
@@ -434,6 +475,10 @@ class AgentLogger:
                     # Look for ToolResultBlock from Agent tool
                     if hasattr(block, 'tool_use_id') and hasattr(block, 'content'):
                         tool_use_id = block.tool_use_id
+
+                        # A background subagent's tool result only confirms the launch
+                        if tool_use_id in progress_state["background_tool_ids"]:
+                            continue
 
                         # Check if this is a result from a spawned subagent
                         if tool_use_id in progress_state["active_tasks"]:
