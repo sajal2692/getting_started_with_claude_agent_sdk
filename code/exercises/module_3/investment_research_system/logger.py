@@ -5,11 +5,13 @@ Handles parallel subagent logging with proper organization and timestamps.
 """
 
 import json
+import re
+import time
 from pathlib import Path
 from datetime import datetime
 from typing import Any, Dict
 import threading
-from claude_agent_sdk import AssistantMessage, TextBlock, TaskStartedMessage, TaskNotificationMessage
+from claude_agent_sdk import AssistantMessage, TextBlock, ToolUseBlock, TaskStartedMessage, TaskNotificationMessage
 from claude_agent_sdk.types import StreamEvent
 
 # Friendly names for subagents in progress lines
@@ -19,6 +21,32 @@ FRIENDLY_NAMES = {
     "competitive-analysis": "Competitive Analyst",
     "dashboard-builder": "Dashboard Builder"
 }
+
+
+def describe_tool_call(block) -> str:
+    """Short description of a subagent's tool call for the status lines."""
+    args = block.input if isinstance(block.input, dict) else {}
+
+    if block.name == "Bash":
+        command = args.get("command", "")
+        # Skill helper scripts live in .claude/skills/<skill>/<script>.py
+        skill = re.search(r"\.claude/skills/([\w-]+)/([\w-]+\.py)", command)
+        if skill:
+            return f"skill {skill.group(1)} ({skill.group(2)})"
+        first_line = command.splitlines()[0] if command else ""
+        first_line = first_line.replace(f"{Path.cwd()}/", "")  # shorten paths
+        return f"Bash: {first_line[:60]}"
+
+    if block.name == "Skill":
+        return f"loading skill {args.get('skill', '')}"
+
+    if block.name.startswith("mcp__"):
+        tool = block.name.split("__")[-1]
+        query = args.get("query")
+        return f'{tool} "{query}"' if query else tool
+
+    path = args.get("file_path")
+    return f"{block.name} {Path(path).name}" if path else block.name
 
 
 class AgentLogger:
@@ -241,11 +269,28 @@ class AgentLogger:
             subagent_type = progress_state["agent_names"].get(message.tool_use_id)
             if subagent_type:
                 name = FRIENDLY_NAMES.get(subagent_type, subagent_type)
-                print(f"\n>> Finished: {name} ({message.status})")
+                details = message.status
+                if message.usage:
+                    usage = message.usage
+                    plural = "" if usage['tool_uses'] == 1 else "s"
+                    details += (f", {usage['tool_uses']} tool use{plural}"
+                                f", {usage['total_tokens'] / 1000:.1f}k tokens"
+                                f", {usage['duration_ms'] / 1000:.0f}s")
+                print(f"\n>> Finished: {name} ({details})")
             return
 
         if not isinstance(message, AssistantMessage):
             return
+
+        # A subagent called a tool: its messages carry the Agent tool call's ID
+        # as parent_tool_use_id
+        subagent_type = progress_state["agent_names"].get(message.parent_tool_use_id)
+        if subagent_type:
+            name = FRIENDLY_NAMES.get(subagent_type, subagent_type)
+            elapsed = time.time() - progress_state["agent_started"][message.parent_tool_use_id]
+            for block in message.content:
+                if isinstance(block, ToolUseBlock):
+                    print(f"   {name}: {describe_tool_call(block)} [{elapsed:.0f}s]")
 
         # Detect Agent tool calls (subagent spawning)
         for block in message.content:
@@ -253,6 +298,7 @@ class AgentLogger:
                 if hasattr(block, 'input') and isinstance(block.input, dict):
                     subagent_type = block.input.get('subagent_type', 'unknown')
                     progress_state["agent_names"][block.id] = subagent_type
+                    progress_state["agent_started"][block.id] = time.time()
 
                     # Only show each subagent spawn once
                     if subagent_type not in progress_state["subagents_spawned"]:

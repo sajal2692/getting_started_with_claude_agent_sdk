@@ -49,6 +49,7 @@ _progress_state = {
     "dashboard_started": False,
     "active_tasks": {},  # Map tool_id to subagent_type
     "agent_names": {},  # Map Agent tool_id to subagent_type, for progress lines
+    "agent_started": {},  # Map Agent tool_id to start time, for elapsed seconds
     "background_tool_ids": set(),  # Agent tool calls that run in the background
     "text_accumulator": {}  # Accumulate text blocks: {(parent_tool_id, block_index): text}
 }
