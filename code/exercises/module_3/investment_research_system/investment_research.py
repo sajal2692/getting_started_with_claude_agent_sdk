@@ -373,6 +373,10 @@ Key principles:
         # Permission mode - bypassPermissions allows subagents to use MCP tools without prompts
         permission_mode="bypassPermissions",
 
+        # Keep subagents in the foreground. Newer Claude Code versions run them
+        # in the background, which ends the coordinator's turn before research finishes
+        env={"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"},
+
         # Model
         model="sonnet",
     )
