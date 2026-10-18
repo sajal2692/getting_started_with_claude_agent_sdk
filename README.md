@@ -81,7 +81,7 @@ claude_agent_sdk_course_code/
 │   │   │   ├── 02_hooks.ipynb
 │   │   │   └── 03_skills.ipynb
 │   │   └── module_3/
-│   │       ├── 01_custom_tools.ipynb
+│   │       ├── 01_remote_mcp.ipynb
 │   │       └── 02_multi_agent_systems.ipynb
 │   └── exercises/                     # Hands-on projects
 │       ├── module_1/
@@ -111,7 +111,7 @@ uv run jupyter notebook
 **Examples cover:**
 - Module 1: Getting started with the SDK
 - Module 2: Session management, hooks, and skills
-- Module 3: Custom tools and multi-agent systems
+- Module 3: Remote MCP servers (O'Reilly Search MCP) and multi-agent systems
 
 ### Running Exercises
 
@@ -142,7 +142,7 @@ cd code/exercises/module_3/investment_research_system
 |--------|----------|--------|----------|-----------|
 | **Module 1** | 75 min | Introduction to Claude Agent SDK, core concepts, response modes | Getting started | Stock analyzer (notebook) |
 | **Module 2** | 90 min | Agent loop, debugging, context management, built-in tools, skills | Session management, hooks, skills | Stock analyzer with skills (CLI) |
-| **Module 3** | 75 min | Custom tools, MCP integration, multi-agent systems | Custom tools, multi-agent systems | Investment research system |
+| **Module 3** | 75 min | Custom tools, MCP integration, multi-agent systems | Remote MCP (O'Reilly), multi-agent systems | Investment research system |
 
 ## Troubleshooting
 
